@@ -301,6 +301,12 @@ export const useAssistantEditor = ({
 
         const updatedAgents = [...agents, newAssistant];
         await ConfigStorage.set('assistants', updatedAgents);
+        await ipcBridge.memory.ensureScope.invoke({
+          userId: 'local',
+          workspaceId: 'global',
+          assistantId: newId,
+          assistantName: editName,
+        });
         setActiveAssistantId(newId);
         await loadAssistants();
         message.success(t('common.createSuccess', { defaultValue: 'Created successfully' }));
@@ -375,6 +381,7 @@ export const useAssistantEditor = ({
       const agents = (await ConfigStorage.get('assistants')) || [];
       const updatedAgents = agents.filter((agent) => agent.id !== activeAssistant.id);
       await ConfigStorage.set('assistants', updatedAgents);
+      await ipcBridge.memory.markAssistantDeleted.invoke({ assistantId: activeAssistant.id });
 
       // Reload merged assistant list (local + extensions)
       await loadAssistants();

@@ -13,6 +13,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  Memory,
   Puzzle,
   Robot,
   System,
@@ -42,6 +43,12 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       label: t('settings.assistants', { defaultValue: 'Assistants' }),
       icon: <Robot theme='outline' size='16' />,
       path: 'assistants',
+    },
+    memory: {
+      id: 'memory',
+      label: t('settings.memory', { defaultValue: '记忆' }),
+      icon: <Memory theme='outline' size='16' />,
+      path: 'memory',
     },
     agent: {
       id: 'agent',

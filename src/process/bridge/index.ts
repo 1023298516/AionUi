@@ -24,6 +24,7 @@ import { initFsBridge } from './fsBridge';
 import { initGeminiBridge } from './geminiBridge';
 import { initGeminiConversationBridge } from './geminiConversationBridge';
 import { initMcpBridge } from './mcpBridge';
+import { initMemoryBridge } from './memoryBridge';
 import { initModelBridge } from './modelBridge';
 import { initPreviewHistoryBridge } from './previewHistoryBridge';
 import { initShellBridge } from './shellBridge';
@@ -80,6 +81,7 @@ export function initAllBridges(deps: BridgeDependencies): void {
   initWebuiBridge();
   initChannelBridge(deps.channelRepo);
   initDatabaseBridge(deps.conversationRepo);
+  initMemoryBridge();
   initExtensionsBridge(deps.conversationRepo, deps.workerTaskManager);
   initCronBridge();
   initSystemSettingsBridge();
@@ -123,6 +125,7 @@ export {
   initGeminiBridge,
   initGeminiConversationBridge,
   initMcpBridge,
+  initMemoryBridge,
   initModelBridge,
   initNotificationBridge,
   initOfficeWatchBridge,

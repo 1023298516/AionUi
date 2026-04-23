@@ -40,6 +40,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "memory:compat-check": "tsx scripts/memory/compatCheck.ts",
     "test:contract": "vitest run tests/contract --passWithNoTests",
     "test:integration": "vitest run tests/integration",
     "test:packaged:i18n": "vitest run tests/integration/i18n-packaged.test.ts",

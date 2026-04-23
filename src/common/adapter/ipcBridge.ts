@@ -629,6 +629,26 @@ export const database = {
   >('database.search-conversation-messages'),
 };
 
+export const memory = {
+  ensureScope: bridge.buildProvider<
+    import('../types/memory').MemoryScope,
+    import('../types/memory').EnsureMemoryScopeParams
+  >('memory.ensure-scope'),
+  listScopes: bridge.buildProvider<import('../types/memory').MemoryScope[], void>('memory.list-scopes'),
+  listEntries: bridge.buildProvider<import('../types/memory').MemoryEntry[], { scopeId: string }>(
+    'memory.list-entries'
+  ),
+  upsertEntry: bridge.buildProvider<
+    import('../types/memory').MemoryEntry,
+    import('../types/memory').UpsertMemoryEntryParams
+  >('memory.upsert-entry'),
+  deleteEntry: bridge.buildProvider<void, { scopeId: string; entryId: string }>('memory.delete-entry'),
+  clearScope: bridge.buildProvider<void, { scopeId: string }>('memory.clear-scope'),
+  deleteScope: bridge.buildProvider<void, { scopeId: string }>('memory.delete-scope'),
+  markAssistantDeleted: bridge.buildProvider<void, { assistantId: string }>('memory.mark-assistant-deleted'),
+  summary: bridge.buildProvider<import('../types/memory').MemoryReportSummary, void>('memory.summary'),
+};
+
 export const previewHistory = {
   list: bridge.buildProvider<PreviewSnapshotInfo[], { target: PreviewHistoryTarget }>('preview-history.list'),
   save: bridge.buildProvider<PreviewSnapshotInfo, { target: PreviewHistoryTarget; content: string }>(
@@ -900,6 +920,8 @@ interface ISendMessageParams {
   conversation_id: string;
   files?: string[];
   loading_id?: string;
+  hidden?: boolean;
+  silent?: boolean;
   /** Skill names to inject into the message (used by agents with file-reading ability) */
   injectSkills?: string[];
 }

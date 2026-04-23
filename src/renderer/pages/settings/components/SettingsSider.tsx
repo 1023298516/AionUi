@@ -11,6 +11,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  Memory,
   Puzzle,
   Robot,
   Speed,
@@ -29,6 +30,7 @@ export const BUILTIN_TAB_IDS = [
   'agent',
   'model',
   'assistants',
+  'memory',
   'capabilities',
   'display',
   'webui',
@@ -144,6 +146,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         label: t('settings.assistants', { defaultValue: 'Assistants' }),
         icon: <Robot />,
         path: 'assistants',
+      },
+      memory: {
+        id: 'memory',
+        label: t('settings.memory', { defaultValue: '记忆' }),
+        icon: <Memory />,
+        path: 'memory',
       },
       agent: {
         id: 'agent',

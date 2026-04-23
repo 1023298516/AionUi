@@ -24,6 +24,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { resolveLocaleKey } from '@/common/utils';
 import { hasGeminiOauthCreds } from './googleAuthCheck';
+import { getMemoryService } from '@process/memory';
 
 export class TeamSessionService {
   private readonly sessions: Map<string, TeamSession> = new Map();
@@ -45,6 +46,34 @@ export class TeamSessionService {
   private resolveWorkspace(workspace: string | undefined): string {
     if (workspace && workspace.trim().length > 0) return workspace;
     return '';
+  }
+
+  private async ensureTeamAgentMemory(params: {
+    teamId: string;
+    workspace: string;
+    agent: Omit<TeamAgent, 'slotId'> | TeamAgent;
+    conversation: Pick<TChatConversation, 'name'> & { extra?: Record<string, unknown> };
+  }): Promise<void> {
+    const extra = params.conversation.extra as
+      | {
+          workspace?: string;
+          presetAssistantId?: string;
+          customAgentId?: string;
+          agentName?: string;
+        }
+      | undefined;
+    const assistantId = extra?.presetAssistantId || extra?.customAgentId || params.agent.customAgentId;
+    if (!assistantId) {
+      return;
+    }
+
+    await getMemoryService().ensureScope({
+      userId: 'local',
+      workspaceId: extra?.workspace || params.workspace || 'global',
+      teamId: params.teamId,
+      assistantId,
+      assistantName: extra?.agentName || params.agent.agentName || params.conversation.name,
+    });
   }
 
   private createGoogleAuthGeminiModel(useModel: string): TProviderWithModel {
@@ -506,6 +535,12 @@ export class TeamSessionService {
               { extra: extraUpdate } as any,
               true
             );
+            await this.ensureTeamAgentMemory({
+              teamId,
+              workspace,
+              agent,
+              conversation: { ...existing, extra: { ...existing.extra, ...extraUpdate } },
+            });
             return { ...agent, slotId, conversationId: agent.conversationId };
           }
           // Fall through to create new if conversation was not found
@@ -524,6 +559,12 @@ export class TeamSessionService {
         // Ensure teamId is in extra regardless of which factory function was used
         // (some factories like createCodexAgent/createGeminiAgent drop unknown extra fields)
         await this.conversationService.updateConversation(conversation.id, { extra: { teamId } } as any, true);
+        await this.ensureTeamAgentMemory({
+          teamId,
+          workspace,
+          agent,
+          conversation: { ...conversation, extra: { ...conversation.extra, teamId } },
+        });
         return { ...agent, slotId, conversationId: conversation.id };
       })
     );

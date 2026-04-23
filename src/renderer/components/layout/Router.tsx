@@ -9,6 +9,7 @@ const AgentSettings = React.lazy(() => import('@renderer/pages/settings/AgentSet
 const AssistantSettings = React.lazy(() => import('@renderer/pages/settings/AssistantSettings'));
 const CapabilitiesSettings = React.lazy(() => import('@renderer/pages/settings/CapabilitiesSettings'));
 const DisplaySettings = React.lazy(() => import('@renderer/pages/settings/DisplaySettings'));
+const MemorySettings = React.lazy(() => import('@renderer/pages/settings/MemorySettings'));
 const AionrsSettings = React.lazy(() => import('@renderer/pages/settings/AionrsSettings'));
 const GeminiSettings = React.lazy(() => import('@renderer/pages/settings/GeminiSettings'));
 const ModeSettings = React.lazy(() => import('@renderer/pages/settings/ModeSettings'));
@@ -64,6 +65,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/gemini' element={withRouteFallback(GeminiSettings)} />
           <Route path='/settings/model' element={withRouteFallback(ModeSettings)} />
           <Route path='/settings/assistants' element={withRouteFallback(AssistantSettings)} />
+          <Route path='/settings/memory' element={withRouteFallback(MemorySettings)} />
           <Route path='/settings/agent' element={withRouteFallback(AgentSettings)} />
           <Route path='/settings/capabilities' element={withRouteFallback(CapabilitiesSettings)} />
           {/* Legacy routes — redirect to the merged /settings/capabilities page */}

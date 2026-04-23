@@ -215,7 +215,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     }
   }
 
-  async sendMessage(data: { content: string; msg_id: string; files?: string[] }) {
+  async sendMessage(data: { content: string; agentContent?: string; msg_id: string; files?: string[] }) {
     const message: TMessage = {
       id: data.msg_id,
       type: 'text',
@@ -237,7 +237,7 @@ export class AionrsManager extends BaseAgentManager<AionrsManagerData, string> {
     this._messageSentAt = Date.now();
     mainLog('[AionrsManager]', `message sent: msg_id=${data.msg_id}`);
     if (this.agent) {
-      await this.agent.send(data.content, data.msg_id, data.files);
+      await this.agent.send(data.agentContent || data.content, data.msg_id, data.files);
     }
   }
 

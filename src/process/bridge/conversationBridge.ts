@@ -28,10 +28,12 @@ import { AcpSkillManager } from '../task/AcpSkillManager';
 import { refreshTrayMenu } from '@process/utils/tray';
 import { copyFilesToDirectory, readDirectoryRecursive } from '@process/utils';
 import { computeOpenClawIdentityHash } from '@process/utils/openclawUtils';
+import { getMemoryService } from '@process/memory';
 import fs from 'fs';
 import path from 'path';
 import { migrateConversationToDatabase } from './migrationUtils';
 import { ConversationSideQuestionService } from './services/ConversationSideQuestionService';
+import type { EnsureMemoryScopeParams } from '@/common/types/memory';
 
 const refreshTrayMenuSafely = async (): Promise<void> => {
   try {
@@ -50,6 +52,69 @@ const VALID_CONVERSATION_TYPES = new Set<TChatConversation['type']>([
   'remote',
   'aionrs',
 ]);
+
+type MemoryConversationExtra = {
+  workspace?: string;
+  teamId?: string;
+  presetAssistantId?: string;
+  customAgentId?: string;
+  agentName?: string;
+};
+
+function resolveMemoryScopeParams(
+  conversation: TChatConversation,
+  workspaceFallback?: string
+): EnsureMemoryScopeParams | null {
+  const extra = conversation.extra as MemoryConversationExtra | undefined;
+  const assistantId = extra?.presetAssistantId || extra?.customAgentId;
+  if (!assistantId) {
+    return null;
+  }
+
+  return {
+    userId: 'local',
+    workspaceId: extra?.workspace || workspaceFallback || 'global',
+    teamId: extra?.teamId,
+    assistantId,
+    assistantName: extra?.agentName || conversation.name,
+  };
+}
+
+async function ensureConversationMemoryScope(
+  conversation: TChatConversation,
+  workspaceFallback?: string
+): Promise<string | null> {
+  const params = resolveMemoryScopeParams(conversation, workspaceFallback);
+  if (!params) {
+    return null;
+  }
+
+  const scope = await getMemoryService().ensureScope(params);
+  return scope.id;
+}
+
+async function buildConversationMemoryContext(
+  conversationService: IConversationService,
+  conversationId: string,
+  workspaceFallback?: string
+): Promise<string> {
+  try {
+    const conversation = await conversationService.getConversation(conversationId);
+    if (!conversation) {
+      return '';
+    }
+
+    const scopeId = await ensureConversationMemoryScope(conversation, workspaceFallback);
+    if (!scopeId) {
+      return '';
+    }
+
+    return getMemoryService().buildPromptContext(scopeId);
+  } catch (error) {
+    console.warn('[conversationBridge] Failed to build memory context:', error);
+    return '';
+  }
+}
 
 export function initConversationBridge(
   conversationService: IConversationService,
@@ -139,6 +204,12 @@ export function initConversationBridge(
         ...createParams,
         source: 'aionui',
       } as CreateConversationParams);
+
+      try {
+        await ensureConversationMemoryScope(conversation);
+      } catch (error) {
+        console.warn('[conversationBridge] Failed to ensure memory scope at conversation creation:', error);
+      }
 
       // Discover and persist loaded skills snapshot at creation time
       // so the UI can display them immediately without waiting for the first message.
@@ -541,12 +612,18 @@ export function initConversationBridge(
       workspaceFiles = (files ?? []).filter((f) => path.isAbsolute(f));
     }
 
+    const memoryContext =
+      other.silent || other.hidden
+        ? ''
+        : await buildConversationMemoryContext(conversationService, conversation_id, task.workspace);
+    const agentInput = memoryContext ? `${memoryContext}\n\n[User Request]\n${other.input}` : other.input;
+
     // Precompute agent content with optional skill injection.
     // OpenClaw uses full-content mode: inject full skill text rather than index paths,
     // because the CLI may not proactively read SKILL.md files the way ACP agents do.
-    let agentContent = other.input;
+    let agentContent = agentInput;
     if (other.injectSkills?.length) {
-      agentContent = await prepareFirstMessage(other.input, {
+      agentContent = await prepareFirstMessage(agentInput, {
         enabledSkills: other.injectSkills,
       });
       // Provide absolute skills directory so agent can resolve relative script paths
@@ -565,6 +642,8 @@ export function initConversationBridge(
       // `agentContent` carries the skill-injected text for OpenClaw (equals `input` when no skills).
       await task.sendMessage({
         ...other,
+        input: other.input,
+        agentInput,
         content: other.input,
         files: workspaceFiles,
         agentContent,

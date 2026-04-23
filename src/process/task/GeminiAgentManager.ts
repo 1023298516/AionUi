@@ -422,6 +422,7 @@ export class GeminiAgentManager extends BaseAgentManager<
 
   async sendMessage(data: {
     input: string;
+    agentInput?: string;
     msg_id: string;
     files?: string[];
     cronMeta?: CronMessageMeta;
@@ -446,7 +447,7 @@ export class GeminiAgentManager extends BaseAgentManager<
             });
           });
         })
-        .then(() => super.sendMessage(data))
+        .then(() => super.sendMessage(data.agentInput ? { ...data, input: data.agentInput } : data))
         .finally(() => {
           cronBusyGuard.setProcessing(this.conversation_id, false);
         });
@@ -508,7 +509,7 @@ export class GeminiAgentManager extends BaseAgentManager<
           });
         });
       })
-      .then(() => super.sendMessage(data))
+      .then(() => super.sendMessage(data.agentInput ? { ...data, input: data.agentInput } : data))
       .finally(() => {
         cronBusyGuard.setProcessing(this.conversation_id, false);
       });

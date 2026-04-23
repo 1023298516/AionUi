@@ -187,6 +187,7 @@ vx.toml
 .taichuy/*
 kylindoc/
 .workspace/
+.memory/
 lint-results.txt
 .worktrees/
 
