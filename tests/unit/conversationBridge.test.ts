@@ -54,6 +54,7 @@ vi.mock('../../src/common', () => ({
 vi.mock('../../src/process/utils/initStorage', () => ({
   ProcessChat: { get: vi.fn(async () => []) },
   getSkillsDir: vi.fn(() => '/skills'),
+  getSystemDir: vi.fn(() => ({ cacheDir: '/tmp/cache' })),
   ProcessConfig: { get: vi.fn(async () => []) },
 }));
 
@@ -79,10 +80,19 @@ vi.mock('../../src/process/task/agentUtils', () => ({
   prepareFirstMessage: vi.fn(async (msg: string) => msg),
 }));
 
+vi.mock('@process/memory/MemoryContextProvider', () => ({
+  ensureConversationMemoryScope: vi.fn(async () => null),
+  buildMemoryAugmentedInput: vi.fn(async ({ input }: { input: string }) => ({
+    memoryContext: '',
+    agentInput: input,
+  })),
+}));
+
 import { initConversationBridge } from '../../src/process/bridge/conversationBridge';
 import type { IConversationService } from '../../src/process/services/IConversationService';
 import type { IWorkerTaskManager } from '../../src/process/task/IWorkerTaskManager';
 import type { TChatConversation } from '../../src/common/config/storage';
+import { buildMemoryAugmentedInput } from '@process/memory/MemoryContextProvider';
 
 function makeService(overrides?: Partial<IConversationService>): IConversationService {
   return {
@@ -278,6 +288,50 @@ describe('conversationBridge', () => {
       expect(result).toEqual({ success: true });
       // sendMessage should still be called with empty files array
       expect(mockTask.sendMessage).toHaveBeenCalled();
+    });
+
+    it('passes memory-augmented input to the agent task', async () => {
+      const augmentedInput = '[AionUi Assistant Memory]\n- (fact) User prefers concise replies.\n\n[User Request]\nhello';
+      vi.mocked(buildMemoryAugmentedInput).mockResolvedValueOnce({
+        memoryContext: '[AionUi Assistant Memory]\n- (fact) User prefers concise replies.',
+        agentInput: augmentedInput,
+      });
+
+      const mockTask = {
+        type: 'acp',
+        workspace: '/workspace/project',
+        sendMessage: vi.fn().mockResolvedValue(undefined),
+      };
+      const tm = makeTaskManager({
+        getOrBuildTask: vi.fn().mockResolvedValue(mockTask),
+      });
+      initConversationBridge(service, tm);
+
+      const handler = handlers['sendMessage'];
+      const result = await handler({
+        conversation_id: 'c1',
+        input: 'hello',
+        files: [],
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(buildMemoryAugmentedInput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationService: service,
+          conversationId: 'c1',
+          workspaceFallback: '/workspace/project',
+          input: 'hello',
+        })
+      );
+      expect(mockTask.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: 'hello',
+          content: 'hello',
+          agentInput: augmentedInput,
+          agentContent: augmentedInput,
+          files: [],
+        })
+      );
     });
   });
 

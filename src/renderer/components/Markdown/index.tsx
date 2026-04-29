@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
+import type { UrlTransform } from 'react-markdown';
 
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
@@ -25,11 +26,20 @@ import CodeBlock from './CodeBlock';
 import ShadowView from './ShadowView';
 
 const REMARK_PLUGINS = [remarkGfm, remarkMath, remarkBreaks];
+const IMAGE_DATA_URL_RE = /^data:image\/(?:png|jpe?g|gif|webp|bmp|svg\+xml)(?:;[a-z0-9.+-]+(?:=[a-z0-9.+-]+)?)*,/i;
 
 const isLocalFilePath = (src: string): boolean => {
+  if (!src) return false;
   if (src.startsWith('http://') || src.startsWith('https://')) return false;
   if (src.startsWith('data:')) return false;
   return true;
+};
+
+const markdownUrlTransform: UrlTransform = (url, key, node) => {
+  if (key === 'src' && node.tagName === 'img' && IMAGE_DATA_URL_RE.test(url)) {
+    return url;
+  }
+  return defaultUrlTransform(url);
 };
 
 type MarkdownViewProps = {
@@ -135,7 +145,12 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
       <div className={classNames('relative w-full', className)}>
         <ShadowView>
           <div ref={onRef} className='markdown-shadow-body'>
-            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={rehypePlugins} components={components}>
+            <ReactMarkdown
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={rehypePlugins}
+              components={components}
+              urlTransform={markdownUrlTransform}
+            >
               {normalizedChildren}
             </ReactMarkdown>
           </div>

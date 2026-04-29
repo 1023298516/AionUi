@@ -3,6 +3,7 @@ import { Badge } from '@arco-design/web-react';
 import { IconDown, IconRight } from '@arco-design/web-react/icon';
 import React, { useEffect, useMemo, useState } from 'react';
 import type { IMessageAcpToolCall, IMessageToolGroup } from '@/common/chat/chatLib';
+import LocalImageView from '@renderer/components/media/LocalImageView';
 import './MessageToolGroupSummary.css';
 
 type ToolItem = {
@@ -12,7 +13,47 @@ type ToolItem = {
   status: BadgeProps['status'];
   input?: string;
   output?: string;
+  mediaPaths?: string[];
 };
+
+const MEDIA_LINE_RE = /^\s*MEDIA:\s*(.+?)\s*$/i;
+const GENERATED_IMAGE_LINE_RE = /^\s*Generated image saved to:\s*(.+?)\s*$/i;
+const IMAGE_PATH_RE = /\.(?:jpe?g|png|gif|webp|bmp|tiff|svg)(?:[?#].*)?$/i;
+
+function cleanMediaPath(mediaPath: string): string {
+  return mediaPath
+    .trim()
+    .replace(/^file:\/\//i, '')
+    .replace(/^\/([A-Za-z]:[\\/])/, '$1')
+    .replace(/^`|`$/g, '');
+}
+
+function getImageAlt(mediaPath: string): string {
+  return mediaPath.split(/[/\\]/).pop() || mediaPath;
+}
+
+function splitGeneratedMedia(text: string): { text: string; mediaPaths: string[] } {
+  const textLines: string[] = [];
+  const mediaPaths: string[] = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(MEDIA_LINE_RE) || line.match(GENERATED_IMAGE_LINE_RE);
+    if (match?.[1]) {
+      mediaPaths.push(cleanMediaPath(match[1]));
+      continue;
+    }
+    textLines.push(line);
+  }
+
+  return {
+    text: textLines.join('\n').trim(),
+    mediaPaths,
+  };
+}
+
+function isImagePath(mediaPath: string): boolean {
+  return IMAGE_PATH_RE.test(mediaPath);
+}
 
 const formatValue = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -53,6 +94,10 @@ const ToolGroupMapper = (m: IMessageToolGroup): ToolItem[] => {
 
     // Output: from resultDisplay (available for success/error/executing states)
     const output = getResultDisplayText(resultDisplay);
+    const mediaPaths =
+      resultDisplay && typeof resultDisplay !== 'string' && 'img_url' in resultDisplay
+        ? [resultDisplay.img_url].filter(isImagePath)
+        : undefined;
 
     return {
       key: callId,
@@ -67,6 +112,7 @@ const ToolGroupMapper = (m: IMessageToolGroup): ToolItem[] => {
             : 'processing') as BadgeProps['status'],
       input,
       output,
+      mediaPaths,
     };
   });
 };
@@ -118,10 +164,20 @@ const ToolAcpMapper = (message: IMessageAcpToolCall): ToolItem | undefined => {
 
   // Output: from content items
   let output: string | undefined;
+  const mediaPaths: string[] = [];
   if (Array.isArray(update.content) && update.content.length) {
     output = update.content
       .map((item) => {
-        if (item.type === 'content' && item.content?.text) return item.content.text;
+        if (item.type === 'content' && item.content?.type === 'text') {
+          const result = splitGeneratedMedia(item.content.text);
+          mediaPaths.push(...result.mediaPaths.filter(isImagePath));
+          return result.text;
+        }
+        if (item.type === 'content' && item.content?.type === 'resource_link') {
+          const mediaPath = cleanMediaPath(item.content.uri);
+          if (isImagePath(mediaPath)) mediaPaths.push(mediaPath);
+          return '';
+        }
         if (item.type === 'diff' && item.path) return `[diff] ${item.path}`;
         return '';
       })
@@ -143,12 +199,14 @@ const ToolAcpMapper = (message: IMessageAcpToolCall): ToolItem | undefined => {
           : ('default' as BadgeProps['status']),
     input,
     output,
+    mediaPaths,
   };
 };
 
 const ToolItemDetail: React.FC<{ item: ToolItem }> = ({ item }) => {
   const [expanded, setExpanded] = useState(false);
-  const hasDetail = item.input || item.output;
+  const hasMedia = !!item.mediaPaths?.length;
+  const hasDetail = item.input || item.output || hasMedia;
 
   return (
     <div className='flex flex-col'>
@@ -174,7 +232,19 @@ const ToolItemDetail: React.FC<{ item: ToolItem }> = ({ item }) => {
           </span>
         )}
       </div>
-      {expanded && hasDetail && (
+      {hasMedia && (
+        <div className='m-l-20px m-t-6px flex flex-col gap-8px'>
+          {item.mediaPaths?.map((mediaPath) => (
+            <LocalImageView
+              key={mediaPath}
+              src={mediaPath}
+              alt={getImageAlt(mediaPath)}
+              className='max-w-240px max-h-320px rounded object-contain'
+            />
+          ))}
+        </div>
+      )}
+      {expanded && (item.input || item.output) && (
         <div className='tool-detail-panel m-l-20px m-t-4px'>
           {item.input && (
             <div className='tool-detail-section'>

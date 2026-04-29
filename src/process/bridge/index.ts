@@ -11,6 +11,7 @@ import type { IConversationService } from '@process/services/IConversationServic
 import type { IWorkerTaskManager } from '@process/task/IWorkerTaskManager';
 import { initAcpConversationBridge } from './acpConversationBridge';
 import { initApplicationBridge } from './applicationBridge';
+import { initAssistantAdvancedBridge } from './assistantAdvancedBridge';
 import { initAuthBridge } from './authBridge';
 import { initBedrockBridge } from './bedrockBridge';
 import { initChannelBridge } from './channelBridge';
@@ -82,6 +83,7 @@ export function initAllBridges(deps: BridgeDependencies): void {
   initChannelBridge(deps.channelRepo);
   initDatabaseBridge(deps.conversationRepo);
   initMemoryBridge();
+  initAssistantAdvancedBridge();
   initExtensionsBridge(deps.conversationRepo, deps.workerTaskManager);
   initCronBridge();
   initSystemSettingsBridge();
@@ -112,6 +114,7 @@ export async function initializeAcpDetector(): Promise<void> {
 export {
   initAcpConversationBridge,
   initApplicationBridge,
+  initAssistantAdvancedBridge,
   initAuthBridge,
   initBedrockBridge,
   initChannelBridge,

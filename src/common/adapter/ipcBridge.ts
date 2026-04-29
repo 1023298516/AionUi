@@ -22,6 +22,11 @@ import type {
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
+import type {
+  AssistantAdvancedMemoryPreview,
+  AssistantAdvancedOverview,
+} from '../types/assistantAdvanced';
+import type { CreateSelfEvolutionCandidateParams } from '../types/selfEvolution';
 
 export const shell = {
   openFile: bridge.buildProvider<void, string>('open-file'), // 使用系统默认程序打开文件
@@ -647,6 +652,43 @@ export const memory = {
   deleteScope: bridge.buildProvider<void, { scopeId: string }>('memory.delete-scope'),
   markAssistantDeleted: bridge.buildProvider<void, { assistantId: string }>('memory.mark-assistant-deleted'),
   summary: bridge.buildProvider<import('../types/memory').MemoryReportSummary, void>('memory.summary'),
+};
+
+export const assistantAdvanced = {
+  ensureProfile: bridge.buildProvider<
+    import('../types/assistantProfile').AssistantProfile,
+    import('../types/assistantProfile').EnsureAssistantProfileParams
+  >('assistant-advanced.ensure-profile'),
+  getOverview: bridge.buildProvider<AssistantAdvancedOverview, { assistantId: string; assistantName?: string }>(
+    'assistant-advanced.get-overview'
+  ),
+  getMemoryPreview: bridge.buildProvider<
+    AssistantAdvancedMemoryPreview,
+    { assistantId: string; assistantName?: string; maxPromptEntries?: number }
+  >('assistant-advanced.get-memory-preview'),
+  ensureMemoryScope: bridge.buildProvider<
+    AssistantAdvancedMemoryPreview,
+    { assistantId: string; assistantName?: string; maxPromptEntries?: number }
+  >('assistant-advanced.ensure-memory-scope'),
+  updateProfile: bridge.buildProvider<
+    import('../types/assistantProfile').AssistantProfile,
+    { assistantId: string; updates: import('../types/assistantProfile').UpdateAssistantProfileParams }
+  >('assistant-advanced.update-profile'),
+  approveCandidate: bridge.buildProvider<
+    import('../types/selfEvolution').SelfEvolutionCandidate,
+    { id: string }
+  >('assistant-advanced.approve-candidate'),
+  applyCandidate: bridge.buildProvider<{ applied: true } | { applied: false; reason: string }, { id: string }>(
+    'assistant-advanced.apply-candidate'
+  ),
+  createCandidate: bridge.buildProvider<
+    import('../types/selfEvolution').SelfEvolutionCandidate,
+    CreateSelfEvolutionCandidateParams
+  >('assistant-advanced.create-candidate'),
+  rejectCandidate: bridge.buildProvider<import('../types/selfEvolution').SelfEvolutionCandidate, { id: string }>(
+    'assistant-advanced.reject-candidate'
+  ),
+  restoreCheckpoint: bridge.buildProvider<void, { id: string }>('assistant-advanced.restore-checkpoint'),
 };
 
 export const previewHistory = {

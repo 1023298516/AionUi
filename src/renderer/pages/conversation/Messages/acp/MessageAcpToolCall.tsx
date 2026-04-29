@@ -12,6 +12,7 @@ import { Card, Tag } from '@arco-design/web-react';
 import { createTwoFilesPatch } from 'diff';
 import React, { useMemo } from 'react';
 import MarkdownView from '@renderer/components/Markdown';
+import LocalImageView from '@renderer/components/media/LocalImageView';
 
 const StatusTag: React.FC<{ status: string }> = ({ status }) => {
   const getTagProps = () => {
@@ -54,6 +55,41 @@ const DiffContentView: React.FC<{ oldText: string; newText: string; path: string
   );
 };
 
+const MEDIA_LINE_RE = /^\s*MEDIA:\s*(.+?)\s*$/i;
+const GENERATED_IMAGE_LINE_RE = /^\s*Generated image saved to:\s*(.+?)\s*$/i;
+const IMAGE_PATH_RE = /\.(?:jpe?g|png|gif|webp|bmp|tiff|svg)(?:[?#].*)?$/i;
+
+function cleanMediaPath(mediaPath: string): string {
+  return mediaPath
+    .trim()
+    .replace(/^file:\/\//i, '')
+    .replace(/^\/([A-Za-z]:[\\/])/, '$1')
+    .replace(/^`|`$/g, '');
+}
+
+function splitGeneratedMedia(text: string): { text: string; mediaPaths: string[] } {
+  const textLines: string[] = [];
+  const mediaPaths: string[] = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(MEDIA_LINE_RE) || line.match(GENERATED_IMAGE_LINE_RE);
+    if (match?.[1]) {
+      mediaPaths.push(cleanMediaPath(match[1]));
+      continue;
+    }
+    textLines.push(line);
+  }
+
+  return {
+    text: textLines.join('\n').trim(),
+    mediaPaths,
+  };
+}
+
+function getImageAlt(mediaPath: string): string {
+  return mediaPath.split(/[/\\]/).pop() || mediaPath;
+}
+
 const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update']['content'][0] }> = ({ content }) => {
   if (content.type === 'diff') {
     return (
@@ -63,12 +99,45 @@ const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update'][
 
   // 处理 content 类型，包含 text 内容
   if (content.type === 'content' && content.content && content.content.type === 'text' && content.content.text) {
+    const { text, mediaPaths } = splitGeneratedMedia(content.content.text);
     return (
       <div className='mt-3'>
         <div className='bg-1 p-3 rounded border overflow-hidden'>
-          <div className='overflow-x-auto break-words'>
-            <MarkdownView>{content.content.text}</MarkdownView>
-          </div>
+          {text && (
+            <div className='overflow-x-auto break-words'>
+              <MarkdownView>{text}</MarkdownView>
+            </div>
+          )}
+          {mediaPaths.length > 0 && (
+            <div className='flex flex-col gap-2 mt-2'>
+              {mediaPaths.map((mediaPath) => (
+                <LocalImageView
+                  key={mediaPath}
+                  src={mediaPath}
+                  alt={getImageAlt(mediaPath)}
+                  className='max-w-240px max-h-320px rounded object-contain'
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (content.type === 'content' && content.content?.type === 'resource_link') {
+    const mediaPath = cleanMediaPath(content.content.uri);
+    if (!IMAGE_PATH_RE.test(mediaPath)) {
+      return null;
+    }
+    return (
+      <div className='mt-3'>
+        <div className='bg-1 p-3 rounded border overflow-hidden'>
+          <LocalImageView
+            src={mediaPath}
+            alt={getImageAlt(content.content.name || mediaPath)}
+            className='max-w-240px max-h-320px rounded object-contain'
+          />
         </div>
       </div>
     );

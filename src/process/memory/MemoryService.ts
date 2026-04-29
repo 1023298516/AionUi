@@ -16,6 +16,7 @@ import type {
 import { getDataPath } from '@process/utils';
 import { JsonMemoryStore } from './JsonMemoryStore';
 import { buildMemoryScopeId, normalizeMemoryScopeIdentity } from './MemoryScope';
+import type { CheckpointService } from '@process/checkpoints';
 
 const DEFAULT_PROMPT_ENTRY_LIMIT = 20;
 const MAX_PROMPT_ENTRY_LENGTH = 800;
@@ -34,7 +35,18 @@ function formatMemoryEntry(entry: MemoryEntry): string {
 }
 
 export class MemoryService {
-  constructor(private readonly store: JsonMemoryStore) {}
+  constructor(
+    private readonly store: JsonMemoryStore,
+    private readonly checkpointService?: CheckpointService
+  ) {}
+
+  private async checkpoint(reason: string): Promise<void> {
+    await this.checkpointService?.createCheckpoint({
+      targetPath: this.store.getFilePath(),
+      namespace: 'memory',
+      reason,
+    });
+  }
 
   async ensureScope(params: EnsureMemoryScopeParams): Promise<MemoryScope> {
     const identity = normalizeMemoryScopeIdentity(params);
@@ -100,6 +112,7 @@ export class MemoryService {
     }
 
     const existing = params.id ? data.entries.find((entry) => entry.id === params.id && entry.scopeId === params.scopeId) : null;
+    await this.checkpoint(existing ? 'before memory entry update' : 'before memory entry create');
     const entry: MemoryEntry = {
       id: existing?.id ?? crypto.randomUUID(),
       scopeId: params.scopeId,
@@ -135,6 +148,7 @@ export class MemoryService {
   async deleteEntry(scopeId: string, entryId: string): Promise<void> {
     const now = Date.now();
     const data = await this.store.read();
+    await this.checkpoint('before memory entry delete');
     data.entries = data.entries.filter((entry) => !(entry.scopeId === scopeId && entry.id === entryId));
     data.scopes = data.scopes.map((scope) =>
       scope.id === scopeId
@@ -151,6 +165,7 @@ export class MemoryService {
   async clearScope(scopeId: string): Promise<void> {
     const now = Date.now();
     const data = await this.store.read();
+    await this.checkpoint('before memory scope clear');
     data.entries = data.entries.filter((entry) => entry.scopeId !== scopeId);
     data.scopes = data.scopes.map((scope) =>
       scope.id === scopeId
@@ -166,6 +181,7 @@ export class MemoryService {
 
   async deleteScope(scopeId: string): Promise<void> {
     const data = await this.store.read();
+    await this.checkpoint('before memory scope delete');
     data.entries = data.entries.filter((entry) => entry.scopeId !== scopeId);
     data.scopes = data.scopes.filter((scope) => scope.id !== scopeId);
     await this.store.write(data);
@@ -174,6 +190,7 @@ export class MemoryService {
   async markAssistantDeleted(assistantId: string): Promise<void> {
     const now = Date.now();
     const data = await this.store.read();
+    await this.checkpoint('before assistant memory orphan');
     data.scopes = data.scopes.map((scope) =>
       scope.assistantId === assistantId
         ? {

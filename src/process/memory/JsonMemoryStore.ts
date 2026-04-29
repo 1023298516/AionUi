@@ -23,6 +23,10 @@ export class JsonMemoryStore {
 
   constructor(private readonly filePath: string) {}
 
+  getFilePath(): string {
+    return this.filePath;
+  }
+
   async read(): Promise<MemoryStoreData> {
     return this.readSync();
   }

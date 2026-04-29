@@ -193,12 +193,19 @@ function getChecks(): SourceCheck[] {
       title: 'Memory service foundation still exists',
       files: [
         'src/common/types/memory.ts',
+        'src/process/memory/MemoryContextProvider.ts',
         'src/process/memory/MemoryService.ts',
         'src/process/memory/JsonMemoryStore.ts',
         'src/process/memory/MemoryScope.ts',
       ],
-      expected: 'MemoryService, JsonMemoryStore, and scope ID construction remain available.',
-      patterns: ['export class MemoryService', 'export class JsonMemoryStore', 'buildMemoryScopeId', 'buildPromptContext'],
+      expected: 'MemoryService, JsonMemoryStore, MemoryContextProvider, and scope ID construction remain available.',
+      patterns: [
+        'export class MemoryService',
+        'export class JsonMemoryStore',
+        'buildMemoryScopeId',
+        'buildPromptContext',
+        'buildMemoryAugmentedInput',
+      ],
     },
     {
       id: 'memory-ipc-bridge',
@@ -223,13 +230,14 @@ function getChecks(): SourceCheck[] {
       title: 'Conversation send path still injects scoped assistant memory',
       files: [
         'src/process/bridge/conversationBridge.ts',
+        'src/process/memory/MemoryContextProvider.ts',
         'src/process/task/GeminiAgentManager.ts',
         'src/process/task/AcpAgentManager.ts',
         'src/process/task/NanoBotAgentManager.ts',
         'src/process/task/AionrsManager.ts',
       ],
       expected: 'Memory context is scoped by conversation identity and delivered only to the agent payload.',
-      patterns: ['buildConversationMemoryContext', 'agentInput', 'agentContent', 'buildPromptContext'],
+      patterns: ['buildMemoryAugmentedInput', 'agentInput', 'agentContent', 'buildPromptContext'],
     },
     {
       id: 'memory-team-scope',
@@ -248,6 +256,64 @@ function getChecks(): SourceCheck[] {
       ],
       expected: 'Settings exposes /settings/memory with list, edit, delete, clear memory actions.',
       patterns: ['/settings/memory', 'MemorySettings', 'memory.listScopes', 'memory.upsertEntry', 'memory.deleteEntry'],
+    },
+    {
+      id: 'assistant-profile-seams',
+      title: 'Assistant profile policy seams remain available',
+      files: [
+        'src/common/types/assistantProfile.ts',
+        'src/process/profiles/AssistantProfileService.ts',
+        'src/process/profiles/JsonAssistantProfileStore.ts',
+      ],
+      expected: 'Profiles expose memory/context/evolution/skill policy without moving memory data.',
+      patterns: ['AssistantProfile', 'getMemoryPolicy', 'getContextPolicy', 'contextFilesEnabled', 'requireApproval'],
+    },
+    {
+      id: 'agent-context-hooks',
+      title: 'Agent context hook bus remains available',
+      files: [
+        'src/process/hooks/AgentContextHookBus.ts',
+        'src/process/memory/MemoryContextProvider.ts',
+        'src/process/bridge/conversationBridge.ts',
+      ],
+      expected: 'Memory/context injection can be extended through hook bus without expanding conversationBridge.',
+      patterns: ['AgentContextHookBus', 'beforeMemoryRecall', 'afterMemoryRecall', 'beforeSendToAgent', 'getAgentContextHookBus'],
+    },
+    {
+      id: 'workspace-context-seams',
+      title: 'Workspace context files and references remain available',
+      files: [
+        'src/process/context/ContextFileProvider.ts',
+        'src/process/context/ContextReferenceResolver.ts',
+        'src/process/memory/MemoryContextProvider.ts',
+      ],
+      expected: 'Context files and explicit @ references can be loaded under profile policy.',
+      patterns: ['ContextFileProvider', 'ContextReferenceResolver', '[AionUi Context]', '@file:', '@diff'],
+    },
+    {
+      id: 'checkpoint-seams',
+      title: 'Checkpoint service protects user-owned data changes',
+      files: [
+        'src/process/checkpoints/CheckpointService.ts',
+        'src/process/memory/MemoryService.ts',
+        'src/process/profiles/AssistantProfileService.ts',
+      ],
+      expected: 'Memory/profile changes can snapshot files before mutation.',
+      patterns: ['CheckpointService', 'createCheckpoint', 'restoreCheckpoint', 'checkpointService'],
+    },
+    {
+      id: 'skill-manifest-seams',
+      title: 'Skill manifest upgrade protection remains available',
+      files: ['src/process/skills/SkillManifestService.ts'],
+      expected: 'Skill/config files can be protected from overwriting user modifications.',
+      patterns: ['SkillManifestService', 'originHash', 'user-modified', 'applyUpdate'],
+    },
+    {
+      id: 'self-evolution-seams',
+      title: 'Self-evolution candidate lab remains conservative',
+      files: ['src/common/types/selfEvolution.ts', 'src/process/evolution/SelfEvolutionService.ts'],
+      expected: 'Self-evolution creates inactive candidates, requires approval, and blocks core source mutation.',
+      patterns: ['SelfEvolutionCandidate', 'approveCandidate', 'not-approved', 'core-source-not-allowed'],
     },
   ];
 }

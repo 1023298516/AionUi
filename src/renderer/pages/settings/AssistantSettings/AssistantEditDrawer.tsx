@@ -5,6 +5,7 @@
 import type { AssistantListItem, BuiltinAutoSkill, SkillInfo } from './types';
 import type { AvailableBackend } from '@/renderer/hooks/assistant';
 import { hasBuiltinSkills } from './assistantUtils';
+import AssistantAdvancedSettings from './AssistantAdvancedSettings';
 import EmojiPicker from '@/renderer/components/chat/EmojiPicker';
 import MarkdownView from '@/renderer/components/Markdown';
 import { Avatar, Button, Checkbox, Collapse, Drawer, Input, Select, Tag, Typography } from '@arco-design/web-react';
@@ -341,6 +342,14 @@ const AssistantEditDrawer: React.FC<AssistantEditDrawerProps> = ({
               {totalActiveSkillsCount > 0 ? `${totalActiveSkillsCount}/${totalSkillsCount}` : totalSkillsCount}
             </Tag>
           </div>
+
+          {!isCreating && activeAssistantId && (
+            <AssistantAdvancedSettings
+              assistantId={activeAssistantId}
+              assistantName={editName || activeAssistant?.name}
+              disabled={false}
+            />
+          )}
 
           {/* Rules / Prompt */}
           <div className='flex-shrink-0'>

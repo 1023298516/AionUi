@@ -831,6 +831,10 @@ export interface ToolCallContentItem {
   content?: {
     type: 'text';
     text: string;
+  } | {
+    type: 'resource_link';
+    name?: string;
+    uri: string;
   };
   path?: string;
   oldText?: string | null;

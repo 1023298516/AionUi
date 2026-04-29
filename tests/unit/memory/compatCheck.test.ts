@@ -39,6 +39,16 @@ describe('runMemoryCompatCheck', () => {
     const report = await runMemoryCompatCheck({ repoRoot, reportDir });
 
     expect(report.ok).toBe(true);
+    expect(report.checks.map((check) => check.id)).toEqual(
+      expect.arrayContaining([
+        'assistant-profile-seams',
+        'agent-context-hooks',
+        'workspace-context-seams',
+        'checkpoint-seams',
+        'skill-manifest-seams',
+        'self-evolution-seams',
+      ])
+    );
     expect(fs.existsSync(path.join(reportDir, 'latest-report.json'))).toBe(true);
     expect(fs.existsSync(path.join(reportDir, 'latest-fix-prompt.md'))).toBe(true);
   });

@@ -5,6 +5,7 @@
  */
 
 import { ensureDirectory, getDataPath } from '@process/utils';
+import { persistMessageDataImages } from '@process/utils/messageDataImages';
 import type { ISqliteDriver } from './drivers/ISqliteDriver';
 import { createDriver } from './drivers/createDriver';
 import fs from 'fs';
@@ -233,6 +234,22 @@ export class AionUIDatabase {
          VALUES (?, ?, NULL, ?, NULL, ?, ?, NULL, NULL)`
       )
       .run(this.defaultUserId, this.defaultUserId, this.systemPasswordPlaceholder, now, now);
+  }
+
+  private getConversationWorkspace(conversationId: string): string | undefined {
+    const conversation = this.getConversation(conversationId);
+    if (!conversation.success || !conversation.data) return undefined;
+
+    const workspace = conversation.data.extra?.workspace;
+    return typeof workspace === 'string' && workspace.trim() ? workspace : undefined;
+  }
+
+  private prepareMessageForStorage<T extends TMessage>(message: T): T {
+    if (message.type !== 'text' || !message.content.content.includes('data:image/')) return message;
+
+    return persistMessageDataImages(message, {
+      workspaceDir: this.getConversationWorkspace(message.conversation_id),
+    });
   }
 
   getSystemUser(): IUser | null {
@@ -807,7 +824,8 @@ export class AionUIDatabase {
 
   insertMessage(message: TMessage): IQueryResult<TMessage> {
     try {
-      const row = messageToRow(message);
+      const messageForStorage = this.prepareMessageForStorage(message);
+      const row = messageToRow(messageForStorage);
 
       const stmt = this.db.prepare(`
         INSERT INTO messages (id, conversation_id, msg_id, type, content, position, status, hidden, created_at)
@@ -828,7 +846,7 @@ export class AionUIDatabase {
 
       return {
         success: true,
-        data: message,
+        data: messageForStorage,
       };
     } catch (error: any) {
       return {
@@ -969,7 +987,7 @@ export class AionUIDatabase {
    */
   updateMessage(messageId: string, message: TMessage): IQueryResult<boolean> {
     try {
-      const row = messageToRow(message);
+      const row = messageToRow(this.prepareMessageForStorage(message));
 
       const stmt = this.db.prepare(`
         UPDATE messages
